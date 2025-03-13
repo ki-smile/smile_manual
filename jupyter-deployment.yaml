@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pytorch-jupyter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pytorch-jupyter
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: pytorch-jupyter
+    spec:
+      enableServiceLinks: false
+      containers:
+      - name: pytorch-jupyter
+        image: pytorch/pytorch:latest
+        command:
+          - /bin/bash
+          - -c
+          - |
+            apt-get update && apt-get install -y python3 python3-pip
+            pip3 install jupyter notebook torch torchvision torchaudio
+            jupyter notebook --ip=0.0.0.0 --port=8888 --allow-root
+        ports:
+        - containerPort: 8888
+        resources:
+          requests:
+            memory: "32Gi"
+            cpu: "8"
+        volumeMounts:
+        - mountPath: /workspace
+          name: data
+        - mountPath: /dev/shm
+          name: shm
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: jupyter-data-pvc
+      - name: shm
+        emptyDir:
+          medium: Memory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jupyter-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
